@@ -72,7 +72,6 @@ def split(avg):
 throw_boost = 1 + (minutes / 10) * 0.15
 shot_interval_boost = 1 + (minutes / 10) * 0.15
 
-# EARLY THROW
 early_throw_boost = 1
 if start_min <= 10:
     early_throw_boost = 1 + ((10 - start_min) / 10) * 0.12
@@ -116,7 +115,6 @@ for name, (home, away, adj) in markets.items():
         l_away = card_lambda(away, start_min, end_min)
 
     elif name == "Offsides":
-        # ✔ flat distribution
         if end_min <= 45:
             l_home = calc_lambda(home, fh_min, minutes)
             l_away = calc_lambda(away, fh_min, minutes)
@@ -160,13 +158,11 @@ for name, (home, away, adj) in markets.items():
 
         elif name == "Shots on Target":
             l_home *= 1 + factor * 0.22
+            l_away *= 1 + factor * 0.22  # ✅ FIXED
 
         elif name == "Corners":
             l_home *= 1 + factor * 0.25
             l_away *= 1 + factor * 0.25
-
-        elif name == "Cards":
-            l_home *= 1 + factor * 0.35
 
         elif name == "Fouls":
             l_home *= 1 + factor * 0.18

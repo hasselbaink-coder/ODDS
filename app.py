@@ -3,13 +3,16 @@ import math
 
 st.set_page_config(page_title="Football Model", layout="centered")
 
-st.title("⚽ Live Model (Clean Version)")
+st.title("Live Football Model")
 
-st.markdown("### 🟢 Enter FULL MATCH averages")
+# --- INPUTS ---
+st.markdown("### Team averages (full match)")
 
-# --- TEAM INPUTS ---
 home_shot = st.number_input("Home Shots", value=12.0)
 away_shot = st.number_input("Away Shots", value=11.0)
+
+home_throw = st.number_input("Home Throw-ins", value=18.0)
+away_throw = st.number_input("Away Throw-ins", value=17.0)
 
 home_foul = st.number_input("Home Fouls", value=12.0)
 away_foul = st.number_input("Away Fouls", value=11.0)
@@ -17,18 +20,26 @@ away_foul = st.number_input("Away Fouls", value=11.0)
 home_corner = st.number_input("Home Corners", value=5.0)
 away_corner = st.number_input("Away Corners", value=4.5)
 
-home_throw = st.number_input("Home Throw-ins", value=18.0)
-away_throw = st.number_input("Away Throw-ins", value=17.0)
-
 home_card = st.number_input("Home Cards", value=1.5)
 away_card = st.number_input("Away Cards", value=1.2)
 
 st.markdown("---")
 
 # --- INTERVAL ---
-minutes = st.slider("Select interval (minutes)", 1, 10, 1)
+start_min = st.slider("Start minute", 1, 90, 10)
 
-# --- FIXED SETTINGS ---
+if start_min < 45:
+    max_end = min(start_min + 5, 45)
+else:
+    max_end = min(start_min + 5, 90)
+
+end_min = st.slider("End minute", start_min + 1, max_end, start_min + 1)
+
+minutes = end_min - start_min
+
+st.write(f"Interval: {minutes} minute(s)")
+
+# --- FIXED ---
 margin = 0.08
 fh_min = 46.5
 sh_min = 48.5
@@ -45,17 +56,12 @@ def odds(p):
 def calc_lambda(avg, total_minutes, interval):
     return (avg / total_minutes) * interval
 
-# --- BOOSTS ---
-
-# Throw boost (დროის ზრდაზე)
-throw_boost = 1 + (minutes / 10) * 0.15
-
-# Shot boost (ინტერვალზე დამოკიდებული, როგორც late pressure proxy)
-shot_boost = 1 + (minutes / 10) * 0.20
-
-# --- HALF SPLIT ---
 def split(avg):
     return avg * 0.48, avg * 0.52
+
+# --- BOOSTS ---
+throw_boost = 1 + (minutes / 10) * 0.15
+shot_boost = 1 + (minutes / 10) * 0.20
 
 # --- MARKETS ---
 markets = {
@@ -66,15 +72,13 @@ markets = {
     "Cards": (home_card, away_card, 2.0),
 }
 
-st.subheader(f"📊 Results ({minutes} min window)")
+st.subheader("Results")
 
 for name, (home, away, adj) in markets.items():
 
-    # --- split halves ---
     fh_home, sh_home = split(home)
     fh_away, sh_away = split(away)
 
-    # --- SH rules ---
     if name == "Throw-ins":
         sh_home = fh_home - 0.25
         sh_away = fh_away - 0.25
@@ -82,11 +86,12 @@ for name, (home, away, adj) in markets.items():
         sh_home = fh_home * adj
         sh_away = fh_away * adj
 
-    # --- lambdas ---
+    # --- FIRST HALF ---
     l_home_fh = calc_lambda(fh_home, fh_min, minutes)
-    l_home_sh = calc_lambda(sh_home, sh_min, minutes)
-
     l_away_fh = calc_lambda(fh_away, fh_min, minutes)
+
+    # --- SECOND HALF ---
+    l_home_sh = calc_lambda(sh_home, sh_min, minutes)
     l_away_sh = calc_lambda(sh_away, sh_min, minutes)
 
     # --- BOOSTS ---
@@ -106,7 +111,7 @@ for name, (home, away, adj) in markets.items():
     l_total_fh = l_home_fh + l_away_fh
     l_total_sh = l_home_sh + l_away_sh
 
-    # --- probabilities ---
+    # --- PROB ---
     p_home_fh = prob(l_home_fh)
     p_home_sh = prob(l_home_sh)
 
@@ -116,7 +121,7 @@ for name, (home, away, adj) in markets.items():
     p_total_fh = prob(l_total_fh)
     p_total_sh = prob(l_total_sh)
 
-    # --- odds ---
+    # --- ODDS ---
     o_home_fh = odds(p_home_fh)
     o_home_sh = odds(p_home_sh)
 
@@ -129,16 +134,16 @@ for name, (home, away, adj) in markets.items():
     # --- OUTPUT ---
     st.markdown(f"### {name}")
 
-    st.write("🏠 Home")
-    st.write(f"FH → {round(p_home_fh*100,1)}% | Odds: {round(o_home_fh,2)}")
-    st.write(f"SH → {round(p_home_sh*100,1)}% | Odds: {round(o_home_sh,2)}")
+    st.write("Home")
+    st.write(f"1st Half → {round(p_home_fh*100,1)}% | Odds: {round(o_home_fh,2)}")
+    st.write(f"2nd Half → {round(p_home_sh*100,1)}% | Odds: {round(o_home_sh,2)}")
 
-    st.write("🚗 Away")
-    st.write(f"FH → {round(p_away_fh*100,1)}% | Odds: {round(o_away_fh,2)}")
-    st.write(f"SH → {round(p_away_sh*100,1)}% | Odds: {round(o_away_sh,2)}")
+    st.write("Away")
+    st.write(f"1st Half → {round(p_away_fh*100,1)}% | Odds: {round(o_away_fh,2)}")
+    st.write(f"2nd Half → {round(p_away_sh*100,1)}% | Odds: {round(o_away_sh,2)}")
 
-    st.write("🌍 TOTAL")
-    st.write(f"FH → {round(p_total_fh*100,1)}% | Odds: {round(o_total_fh,2)}")
-    st.write(f"SH → {round(p_total_sh*100,1)}% | Odds: {round(o_total_sh,2)}")
+    st.write("Total")
+    st.write(f"1st Half → {round(p_total_fh*100,1)}% | Odds: {round(o_total_fh,2)}")
+    st.write(f"2nd Half → {round(p_total_sh*100,1)}% | Odds: {round(o_total_sh,2)}")
 
     st.markdown("---")

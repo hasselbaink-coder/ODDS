@@ -69,10 +69,28 @@ def split(avg):
 throw_boost = 1 + (minutes / 10) * 0.15
 shot_interval_boost = 1 + (minutes / 10) * 0.15
 
-# 🔥 NEW: EARLY THROW BOOST
+# --- EARLY THROW ---
 early_throw_boost = 1
 if start_min <= 10:
     early_throw_boost = 1 + ((10 - start_min) / 10) * 0.12
+
+# --- CARD DISTRIBUTION ---
+card_dist = [
+    (1, 15, 0.05),
+    (15, 30, 0.11),
+    (30, 45, 0.175),
+    (45, 60, 0.15),
+    (60, 75, 0.18),
+    (75, 90, 0.34),
+]
+
+def card_interval_lambda(avg, start, end):
+    total = 0
+    for s, e, w in card_dist:
+        overlap = max(0, min(end, e) - max(start, s))
+        if overlap > 0:
+            total += avg * w * (overlap / (e - s))
+    return total
 
 # --- MARKETS ---
 markets = {
@@ -81,7 +99,7 @@ markets = {
     "Fouls": (home_foul, away_foul, 1.11),
     "Corners": (home_corner, away_corner, 1.15),
     "Throw-ins": (home_throw, away_throw, None),
-    "Cards": (home_card, away_card, 2.0),
+    "Cards": (home_card, away_card, None),
     "Goal Kicks": (home_gk, away_gk, 1.07),
 }
 
@@ -89,26 +107,30 @@ st.subheader("Results")
 
 for name, (home, away, adj) in markets.items():
 
-    fh_home, sh_home = split(home)
-    fh_away, sh_away = split(away)
+    if name == "Cards":
+        # --- CARD SPECIAL MODEL ---
+        l_home = card_interval_lambda(home, start_min, end_min)
+        l_away = card_interval_lambda(away, start_min, end_min)
 
-    # --- SH adjustment ---
-    if name == "Throw-ins":
-        sh_home = fh_home - 0.25
-        sh_away = fh_away - 0.25
     else:
-        sh_home = fh_home * adj
-        sh_away = fh_away * adj
+        fh_home, sh_home = split(home)
+        fh_away, sh_away = split(away)
 
-    # --- SELECT HALF ---
-    if end_min <= 45:
-        l_home = calc_lambda(fh_home, fh_min, minutes)
-        l_away = calc_lambda(fh_away, fh_min, minutes)
-    else:
-        l_home = calc_lambda(sh_home, sh_min, minutes)
-        l_away = calc_lambda(sh_away, sh_min, minutes)
+        if name == "Throw-ins":
+            sh_home = fh_home - 0.25
+            sh_away = fh_away - 0.25
+        else:
+            sh_home = fh_home * adj
+            sh_away = fh_away * adj
 
-    # --- INTERVAL BOOST ---
+        if end_min <= 45:
+            l_home = calc_lambda(fh_home, fh_min, minutes)
+            l_away = calc_lambda(fh_away, fh_min, minutes)
+        else:
+            l_home = calc_lambda(sh_home, sh_min, minutes)
+            l_away = calc_lambda(sh_away, sh_min, minutes)
+
+    # --- BOOSTS ---
     if name == "Throw-ins":
         l_home *= throw_boost * early_throw_boost
         l_away *= throw_boost * early_throw_boost
@@ -117,8 +139,7 @@ for name, (home, away, adj) in markets.items():
         l_home *= shot_interval_boost
         l_away *= shot_interval_boost
 
-    # --- LATE GAME BOOST ---
-    if start_min >= 75:
+    if start_min >= 75 and name != "Cards":
         factor = (start_min - 75) / 15
 
         if name == "Shots":
@@ -132,10 +153,6 @@ for name, (home, away, adj) in markets.items():
         elif name == "Corners":
             l_home *= 1 + factor * 0.25
             l_away *= 1 + factor * 0.25
-
-        elif name == "Cards":
-            l_home *= 1 + factor * 0.35
-            l_away *= 1 + factor * 0.35
 
         elif name == "Fouls":
             l_home *= 1 + factor * 0.18

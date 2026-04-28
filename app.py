@@ -3,7 +3,7 @@ import math
 
 st.set_page_config(page_title="Football Model", layout="centered")
 
-st.title("⚽ Live Model (Team + Total)")
+st.title("⚽ Live Model (Clean Version)")
 
 st.markdown("### 🟢 Enter FULL MATCH averages")
 
@@ -25,11 +25,11 @@ away_card = st.number_input("Away Cards", value=1.2)
 
 st.markdown("---")
 
-# --- CONTROLS ---
-minutes = st.slider("Interval (minutes)", 1, 10, 1)
-match_minute = st.slider("Match minute", 1, 90, 45)
-margin = st.slider("Margin (%)", 0, 20, 8) / 100
+# --- INTERVAL ---
+minutes = st.slider("Select interval (minutes)", 1, 10, 1)
 
+# --- FIXED SETTINGS ---
+margin = 0.08
 fh_min = 46.5
 sh_min = 48.5
 
@@ -37,7 +37,7 @@ sh_min = 48.5
 def prob(lmbda):
     return 1 - math.exp(-lmbda)
 
-def odds(p, margin):
+def odds(p):
     if p <= 0:
         return 0
     return (1 / p) * (1 - margin)
@@ -46,11 +46,12 @@ def calc_lambda(avg, total_minutes, interval):
     return (avg / total_minutes) * interval
 
 # --- BOOSTS ---
+
+# Throw boost (დროის ზრდაზე)
 throw_boost = 1 + (minutes / 10) * 0.15
 
-shot_boost = 1
-if match_minute >= 75:
-    shot_boost = 1 + ((match_minute - 75) / 15) * 0.25
+# Shot boost (ინტერვალზე დამოკიდებული, როგორც late pressure proxy)
+shot_boost = 1 + (minutes / 10) * 0.20
 
 # --- HALF SPLIT ---
 def split(avg):
@@ -73,7 +74,7 @@ for name, (home, away, adj) in markets.items():
     fh_home, sh_home = split(home)
     fh_away, sh_away = split(away)
 
-    # --- SH adjustments ---
+    # --- SH rules ---
     if name == "Throw-ins":
         sh_home = fh_home - 0.25
         sh_away = fh_away - 0.25
@@ -88,7 +89,7 @@ for name, (home, away, adj) in markets.items():
     l_away_fh = calc_lambda(fh_away, fh_min, minutes)
     l_away_sh = calc_lambda(sh_away, sh_min, minutes)
 
-    # --- boosts ---
+    # --- BOOSTS ---
     if name == "Throw-ins":
         l_home_fh *= throw_boost
         l_home_sh *= throw_boost
@@ -116,14 +117,14 @@ for name, (home, away, adj) in markets.items():
     p_total_sh = prob(l_total_sh)
 
     # --- odds ---
-    o_home_fh = odds(p_home_fh, margin)
-    o_home_sh = odds(p_home_sh, margin)
+    o_home_fh = odds(p_home_fh)
+    o_home_sh = odds(p_home_sh)
 
-    o_away_fh = odds(p_away_fh, margin)
-    o_away_sh = odds(p_away_sh, margin)
+    o_away_fh = odds(p_away_fh)
+    o_away_sh = odds(p_away_sh)
 
-    o_total_fh = odds(p_total_fh, margin)
-    o_total_sh = odds(p_total_sh, margin)
+    o_total_fh = odds(p_total_fh)
+    o_total_sh = odds(p_total_sh)
 
     # --- OUTPUT ---
     st.markdown(f"### {name}")

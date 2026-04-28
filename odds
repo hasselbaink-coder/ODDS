@@ -1,0 +1,50 @@
+import math
+
+# --- INPUT (შენ აქ წერ პირველ ტაიმს) ---
+X_throw = 16
+X_foul = 10.1
+X_shot = 13.9
+X_sot = 5.85
+X_off = 2.05
+X_gk = 7.25
+X_corner = 4.5
+X_card = 1.35
+
+# --- FUNCTIONS ---
+def prob(lmbda):
+    return 1 - math.exp(-lmbda)
+
+def odds(p):
+    return (1 / p) * 0.92  # 8% margin
+
+def calc_lambda(avg, minutes):
+    return avg / minutes
+
+# --- MINUTES ---
+fh_min = 46.5
+sh_min = 48.5
+
+# --- DATA (აქ არის შენი წესები ავტომატურად) ---
+data = {
+    "Throw": (X_throw, X_throw - 0.5),
+    "Foul": (X_foul, X_foul * 1.11),
+    "Shot": (X_shot, X_shot * 1.17),
+    "SOT": (X_sot, X_sot * 1.14),
+    "Offside": (X_off, X_off),
+    "Goal Kick": (X_gk, X_gk * 1.07),
+    "Corner": (X_corner, X_corner * 1.15),
+    "Card": (X_card, X_card * 2),
+}
+
+# --- CALC ---
+for k, (fh, sh) in data.items():
+
+    l_fh = calc_lambda(fh, fh_min)
+    l_sh = calc_lambda(sh, sh_min)
+
+    p_fh = prob(l_fh)
+    p_sh = prob(l_sh)
+
+    print(f"\n{k}")
+    print(f" FH → {round(p_fh*100,1)}% | Odds: {round(odds(p_fh),2)}")
+    print(f" SH → {round(p_sh*100,1)}% | Odds: {round(odds(p_sh),2)}")

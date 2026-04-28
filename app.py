@@ -1,11 +1,11 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="Advanced Football Model", layout="centered")
+st.set_page_config(page_title="Football Model", layout="centered")
 
-st.title("⚽ Advanced Live Model (Team Split Fixed)")
+st.title("⚽ Live Model (Team + Total)")
 
-st.markdown("### 🟢 Team Inputs (FULL MATCH AVG)")
+st.markdown("### 🟢 Enter FULL MATCH averages")
 
 # --- TEAM INPUTS ---
 home_shot = st.number_input("Home Shots", value=12.0)
@@ -38,7 +38,7 @@ def prob(lmbda):
     return 1 - math.exp(-lmbda)
 
 def odds(p, margin):
-    if p == 0:
+    if p <= 0:
         return 0
     return (1 / p) * (1 - margin)
 
@@ -53,10 +53,8 @@ if match_minute >= 75:
     shot_boost = 1 + ((match_minute - 75) / 15) * 0.25
 
 # --- HALF SPLIT ---
-def split_fh_sh(avg):
-    fh = avg * 0.48
-    sh = avg * 0.52
-    return fh, sh
+def split(avg):
+    return avg * 0.48, avg * 0.52
 
 # --- MARKETS ---
 markets = {
@@ -69,15 +67,14 @@ markets = {
 
 st.subheader(f"📊 Results ({minutes} min window)")
 
-for market, (home, away, adj) in markets.items():
+for name, (home, away, adj) in markets.items():
 
     # --- split halves ---
-    fh_home, sh_home = split_fh_sh(home)
-    fh_away, sh_away = split_fh_sh(away)
+    fh_home, sh_home = split(home)
+    fh_away, sh_away = split(away)
 
-    # --- APPLY SH RULES ---
-    if market == "Throw-ins":
-        # ❗ აქაა შენი მოთხოვნა
+    # --- SH adjustments ---
+    if name == "Throw-ins":
         sh_home = fh_home - 0.25
         sh_away = fh_away - 0.25
     else:
@@ -91,18 +88,22 @@ for market, (home, away, adj) in markets.items():
     l_away_fh = calc_lambda(fh_away, fh_min, minutes)
     l_away_sh = calc_lambda(sh_away, sh_min, minutes)
 
-    # --- BOOSTS ---
-    if market == "Throw-ins":
+    # --- boosts ---
+    if name == "Throw-ins":
         l_home_fh *= throw_boost
         l_home_sh *= throw_boost
         l_away_fh *= throw_boost
         l_away_sh *= throw_boost
 
-    if market == "Shots":
+    if name == "Shots":
         l_home_fh *= shot_boost
         l_home_sh *= shot_boost
         l_away_fh *= shot_boost
         l_away_sh *= shot_boost
+
+    # --- TOTAL ---
+    l_total_fh = l_home_fh + l_away_fh
+    l_total_sh = l_home_sh + l_away_sh
 
     # --- probabilities ---
     p_home_fh = prob(l_home_fh)
@@ -111,6 +112,9 @@ for market, (home, away, adj) in markets.items():
     p_away_fh = prob(l_away_fh)
     p_away_sh = prob(l_away_sh)
 
+    p_total_fh = prob(l_total_fh)
+    p_total_sh = prob(l_total_sh)
+
     # --- odds ---
     o_home_fh = odds(p_home_fh, margin)
     o_home_sh = odds(p_home_sh, margin)
@@ -118,8 +122,11 @@ for market, (home, away, adj) in markets.items():
     o_away_fh = odds(p_away_fh, margin)
     o_away_sh = odds(p_away_sh, margin)
 
+    o_total_fh = odds(p_total_fh, margin)
+    o_total_sh = odds(p_total_sh, margin)
+
     # --- OUTPUT ---
-    st.markdown(f"### {market}")
+    st.markdown(f"### {name}")
 
     st.write("🏠 Home")
     st.write(f"FH → {round(p_home_fh*100,1)}% | Odds: {round(o_home_fh,2)}")
@@ -128,5 +135,9 @@ for market, (home, away, adj) in markets.items():
     st.write("🚗 Away")
     st.write(f"FH → {round(p_away_fh*100,1)}% | Odds: {round(o_away_fh,2)}")
     st.write(f"SH → {round(p_away_sh*100,1)}% | Odds: {round(o_away_sh,2)}")
+
+    st.write("🌍 TOTAL")
+    st.write(f"FH → {round(p_total_fh*100,1)}% | Odds: {round(o_total_fh,2)}")
+    st.write(f"SH → {round(p_total_sh*100,1)}% | Odds: {round(o_total_sh,2)}")
 
     st.markdown("---")

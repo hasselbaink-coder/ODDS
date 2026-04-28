@@ -86,64 +86,43 @@ for name, (home, away, adj) in markets.items():
         sh_home = fh_home * adj
         sh_away = fh_away * adj
 
-    # --- FIRST HALF ---
-    l_home_fh = calc_lambda(fh_home, fh_min, minutes)
-    l_away_fh = calc_lambda(fh_away, fh_min, minutes)
-
-    # --- SECOND HALF ---
-    l_home_sh = calc_lambda(sh_home, sh_min, minutes)
-    l_away_sh = calc_lambda(sh_away, sh_min, minutes)
+    # --- decide which half to use ---
+    if end_min <= 45:
+        # FIRST HALF
+        l_home = calc_lambda(fh_home, fh_min, minutes)
+        l_away = calc_lambda(fh_away, fh_min, minutes)
+    else:
+        # SECOND HALF
+        l_home = calc_lambda(sh_home, sh_min, minutes)
+        l_away = calc_lambda(sh_away, sh_min, minutes)
 
     # --- BOOSTS ---
     if name == "Throw-ins":
-        l_home_fh *= throw_boost
-        l_home_sh *= throw_boost
-        l_away_fh *= throw_boost
-        l_away_sh *= throw_boost
+        l_home *= throw_boost
+        l_away *= throw_boost
 
     if name == "Shots":
-        l_home_fh *= shot_boost
-        l_home_sh *= shot_boost
-        l_away_fh *= shot_boost
-        l_away_sh *= shot_boost
+        l_home *= shot_boost
+        l_away *= shot_boost
 
     # --- TOTAL ---
-    l_total_fh = l_home_fh + l_away_fh
-    l_total_sh = l_home_sh + l_away_sh
+    l_total = l_home + l_away
 
     # --- PROB ---
-    p_home_fh = prob(l_home_fh)
-    p_home_sh = prob(l_home_sh)
-
-    p_away_fh = prob(l_away_fh)
-    p_away_sh = prob(l_away_sh)
-
-    p_total_fh = prob(l_total_fh)
-    p_total_sh = prob(l_total_sh)
+    p_home = prob(l_home)
+    p_away = prob(l_away)
+    p_total = prob(l_total)
 
     # --- ODDS ---
-    o_home_fh = odds(p_home_fh)
-    o_home_sh = odds(p_home_sh)
-
-    o_away_fh = odds(p_away_fh)
-    o_away_sh = odds(p_away_sh)
-
-    o_total_fh = odds(p_total_fh)
-    o_total_sh = odds(p_total_sh)
+    o_home = odds(p_home)
+    o_away = odds(p_away)
+    o_total = odds(p_total)
 
     # --- OUTPUT ---
     st.markdown(f"### {name}")
 
-    st.write("Home")
-    st.write(f"1st Half → {round(p_home_fh*100,1)}% | Odds: {round(o_home_fh,2)}")
-    st.write(f"2nd Half → {round(p_home_sh*100,1)}% | Odds: {round(o_home_sh,2)}")
-
-    st.write("Away")
-    st.write(f"1st Half → {round(p_away_fh*100,1)}% | Odds: {round(o_away_fh,2)}")
-    st.write(f"2nd Half → {round(p_away_sh*100,1)}% | Odds: {round(o_away_sh,2)}")
-
-    st.write("Total")
-    st.write(f"1st Half → {round(p_total_fh*100,1)}% | Odds: {round(o_total_fh,2)}")
-    st.write(f"2nd Half → {round(p_total_sh*100,1)}% | Odds: {round(o_total_sh,2)}")
+    st.write(f"Home → {round(p_home*100,1)}% | Odds: {round(o_home,2)}")
+    st.write(f"Away → {round(p_away*100,1)}% | Odds: {round(o_away,2)}")
+    st.write(f"Total → {round(p_total*100,1)}% | Odds: {round(o_total,2)}")
 
     st.markdown("---")

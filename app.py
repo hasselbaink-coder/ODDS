@@ -29,6 +29,9 @@ away_card = st.number_input("Away Cards", value=1.2)
 home_gk = st.number_input("Home Goal Kicks", value=6.0)
 away_gk = st.number_input("Away Goal Kicks", value=6.0)
 
+home_off = st.number_input("Home Offsides", value=2.0)
+away_off = st.number_input("Away Offsides", value=2.0)
+
 st.markdown("---")
 
 # --- INTERVAL ---
@@ -69,7 +72,7 @@ def split(avg):
 throw_boost = 1 + (minutes / 10) * 0.15
 shot_interval_boost = 1 + (minutes / 10) * 0.15
 
-# --- EARLY THROW ---
+# EARLY THROW
 early_throw_boost = 1
 if start_min <= 10:
     early_throw_boost = 1 + ((10 - start_min) / 10) * 0.12
@@ -84,7 +87,7 @@ card_dist = [
     (75, 90, 0.34),
 ]
 
-def card_interval_lambda(avg, start, end):
+def card_lambda(avg, start, end):
     total = 0
     for s, e, w in card_dist:
         overlap = max(0, min(end, e) - max(start, s))
@@ -101,6 +104,7 @@ markets = {
     "Throw-ins": (home_throw, away_throw, None),
     "Cards": (home_card, away_card, None),
     "Goal Kicks": (home_gk, away_gk, 1.07),
+    "Offsides": (home_off, away_off, None),
 }
 
 st.subheader("Results")
@@ -108,9 +112,17 @@ st.subheader("Results")
 for name, (home, away, adj) in markets.items():
 
     if name == "Cards":
-        # --- CARD SPECIAL MODEL ---
-        l_home = card_interval_lambda(home, start_min, end_min)
-        l_away = card_interval_lambda(away, start_min, end_min)
+        l_home = card_lambda(home, start_min, end_min)
+        l_away = card_lambda(away, start_min, end_min)
+
+    elif name == "Offsides":
+        # ✔ flat distribution
+        if end_min <= 45:
+            l_home = calc_lambda(home, fh_min, minutes)
+            l_away = calc_lambda(away, fh_min, minutes)
+        else:
+            l_home = calc_lambda(home, sh_min, minutes)
+            l_away = calc_lambda(away, sh_min, minutes)
 
     else:
         fh_home, sh_home = split(home)
@@ -139,7 +151,7 @@ for name, (home, away, adj) in markets.items():
         l_home *= shot_interval_boost
         l_away *= shot_interval_boost
 
-    if start_min >= 75 and name != "Cards":
+    if start_min >= 75 and name not in ["Cards", "Offsides"]:
         factor = (start_min - 75) / 15
 
         if name == "Shots":
@@ -148,11 +160,13 @@ for name, (home, away, adj) in markets.items():
 
         elif name == "Shots on Target":
             l_home *= 1 + factor * 0.22
-            l_away *= 1 + factor * 0.22
 
         elif name == "Corners":
             l_home *= 1 + factor * 0.25
             l_away *= 1 + factor * 0.25
+
+        elif name == "Cards":
+            l_home *= 1 + factor * 0.35
 
         elif name == "Fouls":
             l_home *= 1 + factor * 0.18

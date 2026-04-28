@@ -69,6 +69,11 @@ def split(avg):
 throw_boost = 1 + (minutes / 10) * 0.15
 shot_interval_boost = 1 + (minutes / 10) * 0.15
 
+# 🔥 NEW: EARLY THROW BOOST
+early_throw_boost = 1
+if start_min <= 10:
+    early_throw_boost = 1 + ((10 - start_min) / 10) * 0.12
+
 # --- MARKETS ---
 markets = {
     "Shots": (home_shot, away_shot, 1.17),
@@ -105,8 +110,8 @@ for name, (home, away, adj) in markets.items():
 
     # --- INTERVAL BOOST ---
     if name == "Throw-ins":
-        l_home *= throw_boost
-        l_away *= throw_boost
+        l_home *= throw_boost * early_throw_boost
+        l_away *= throw_boost * early_throw_boost
 
     if name in ["Shots", "Shots on Target"]:
         l_home *= shot_interval_boost

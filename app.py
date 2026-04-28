@@ -1,26 +1,33 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="Live Football Model", layout="centered")
+st.set_page_config(page_title="Advanced Football Model", layout="centered")
 
-st.title("⚽ Live Probability Calculator")
+st.title("⚽ Advanced Live Model (Team Split Fixed)")
 
-st.write("შეიყვანე პირველი ტაიმის საშუალოები (FH avg)")
+st.markdown("### 🟢 Team Inputs (FULL MATCH AVG)")
 
-# --- INPUTS ---
-X_throw = st.number_input("Throw-ins (FH)", value=16.0)
-X_foul = st.number_input("Fouls (FH)", value=10.1)
-X_shot = st.number_input("Shots (FH)", value=13.9)
-X_sot = st.number_input("Shots on Target (FH)", value=5.85)
-X_off = st.number_input("Offside (FH)", value=2.05)
-X_gk = st.number_input("Goal Kick (FH)", value=7.25)
-X_corner = st.number_input("Corner (FH)", value=4.5)
-X_card = st.number_input("Cards (FH)", value=1.35)
+# --- TEAM INPUTS ---
+home_shot = st.number_input("Home Shots", value=12.0)
+away_shot = st.number_input("Away Shots", value=11.0)
+
+home_foul = st.number_input("Home Fouls", value=12.0)
+away_foul = st.number_input("Away Fouls", value=11.0)
+
+home_corner = st.number_input("Home Corners", value=5.0)
+away_corner = st.number_input("Away Corners", value=4.5)
+
+home_throw = st.number_input("Home Throw-ins", value=18.0)
+away_throw = st.number_input("Away Throw-ins", value=17.0)
+
+home_card = st.number_input("Home Cards", value=1.5)
+away_card = st.number_input("Away Cards", value=1.2)
 
 st.markdown("---")
 
-# --- SETTINGS ---
-minutes = st.slider("აირჩიე წუთები", 1, 10, 1)
+# --- CONTROLS ---
+minutes = st.slider("Interval (minutes)", 1, 10, 1)
+match_minute = st.slider("Match minute", 1, 90, 45)
 margin = st.slider("Margin (%)", 0, 20, 8) / 100
 
 fh_min = 46.5
@@ -38,36 +45,88 @@ def odds(p, margin):
 def calc_lambda(avg, total_minutes, interval):
     return (avg / total_minutes) * interval
 
-# --- SECOND HALF RULES ---
-data = {
-    "Throw-in": (X_throw, X_throw - 0.5),
-    "Foul": (X_foul, X_foul * 1.11),
-    "Shot": (X_shot, X_shot * 1.17),
-    "Shot on Target": (X_sot, X_sot * 1.14),
-    "Offside": (X_off, X_off),
-    "Goal Kick": (X_gk, X_gk * 1.07),
-    "Corner": (X_corner, X_corner * 1.15),
-    "Card": (X_card, X_card * 2),
+# --- BOOSTS ---
+throw_boost = 1 + (minutes / 10) * 0.15
+
+shot_boost = 1
+if match_minute >= 75:
+    shot_boost = 1 + ((match_minute - 75) / 15) * 0.25
+
+# --- HALF SPLIT ---
+def split_fh_sh(avg):
+    fh = avg * 0.48
+    sh = avg * 0.52
+    return fh, sh
+
+# --- MARKETS ---
+markets = {
+    "Shots": (home_shot, away_shot, 1.17),
+    "Fouls": (home_foul, away_foul, 1.11),
+    "Corners": (home_corner, away_corner, 1.15),
+    "Throw-ins": (home_throw, away_throw, None),
+    "Cards": (home_card, away_card, 2.0),
 }
 
-st.subheader(f"📊 შედეგები ({minutes} წუთში)")
+st.subheader(f"📊 Results ({minutes} min window)")
 
-for market, (fh, sh) in data.items():
+for market, (home, away, adj) in markets.items():
 
-    # lambdas
-    l_fh = calc_lambda(fh, fh_min, minutes)
-    l_sh = calc_lambda(sh, sh_min, minutes)
+    # --- split halves ---
+    fh_home, sh_home = split_fh_sh(home)
+    fh_away, sh_away = split_fh_sh(away)
 
-    # probabilities
-    p_fh = prob(l_fh)
-    p_sh = prob(l_sh)
+    # --- APPLY SH RULES ---
+    if market == "Throw-ins":
+        # ❗ აქაა შენი მოთხოვნა
+        sh_home = fh_home - 0.25
+        sh_away = fh_away - 0.25
+    else:
+        sh_home = fh_home * adj
+        sh_away = fh_away * adj
 
-    # odds
-    o_fh = odds(p_fh, margin)
-    o_sh = odds(p_sh, margin)
+    # --- lambdas ---
+    l_home_fh = calc_lambda(fh_home, fh_min, minutes)
+    l_home_sh = calc_lambda(sh_home, sh_min, minutes)
 
+    l_away_fh = calc_lambda(fh_away, fh_min, minutes)
+    l_away_sh = calc_lambda(sh_away, sh_min, minutes)
+
+    # --- BOOSTS ---
+    if market == "Throw-ins":
+        l_home_fh *= throw_boost
+        l_home_sh *= throw_boost
+        l_away_fh *= throw_boost
+        l_away_sh *= throw_boost
+
+    if market == "Shots":
+        l_home_fh *= shot_boost
+        l_home_sh *= shot_boost
+        l_away_fh *= shot_boost
+        l_away_sh *= shot_boost
+
+    # --- probabilities ---
+    p_home_fh = prob(l_home_fh)
+    p_home_sh = prob(l_home_sh)
+
+    p_away_fh = prob(l_away_fh)
+    p_away_sh = prob(l_away_sh)
+
+    # --- odds ---
+    o_home_fh = odds(p_home_fh, margin)
+    o_home_sh = odds(p_home_sh, margin)
+
+    o_away_fh = odds(p_away_fh, margin)
+    o_away_sh = odds(p_away_sh, margin)
+
+    # --- OUTPUT ---
     st.markdown(f"### {market}")
-    st.write(f"FH → {round(p_fh*100,1)}% | Odds: {round(o_fh,2)}")
-    st.write(f"SH → {round(p_sh*100,1)}% | Odds: {round(o_sh,2)}")
+
+    st.write("🏠 Home")
+    st.write(f"FH → {round(p_home_fh*100,1)}% | Odds: {round(o_home_fh,2)}")
+    st.write(f"SH → {round(p_home_sh*100,1)}% | Odds: {round(o_home_sh,2)}")
+
+    st.write("🚗 Away")
+    st.write(f"FH → {round(p_away_fh*100,1)}% | Odds: {round(o_away_fh,2)}")
+    st.write(f"SH → {round(p_away_sh*100,1)}% | Odds: {round(o_away_sh,2)}")
 
     st.markdown("---")

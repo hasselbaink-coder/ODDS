@@ -11,6 +11,9 @@ st.markdown("### Team averages (full match)")
 home_shot = st.number_input("Home Shots", value=12.0)
 away_shot = st.number_input("Away Shots", value=11.0)
 
+home_sot = st.number_input("Home Shots on Target", value=4.5)
+away_sot = st.number_input("Away Shots on Target", value=4.0)
+
 home_throw = st.number_input("Home Throw-ins", value=18.0)
 away_throw = st.number_input("Away Throw-ins", value=17.0)
 
@@ -22,6 +25,9 @@ away_corner = st.number_input("Away Corners", value=4.5)
 
 home_card = st.number_input("Home Cards", value=1.5)
 away_card = st.number_input("Away Cards", value=1.2)
+
+home_gk = st.number_input("Home Goal Kicks", value=6.0)
+away_gk = st.number_input("Away Goal Kicks", value=6.0)
 
 st.markdown("---")
 
@@ -39,7 +45,7 @@ minutes = end_min - start_min
 
 st.write(f"Interval: {minutes} minute(s)")
 
-# --- FIXED ---
+# --- CONSTANTS ---
 margin = 0.08
 fh_min = 46.5
 sh_min = 48.5
@@ -61,15 +67,17 @@ def split(avg):
 
 # --- BOOSTS ---
 throw_boost = 1 + (minutes / 10) * 0.15
-shot_boost = 1 + (minutes / 10) * 0.20
+shot_interval_boost = 1 + (minutes / 10) * 0.15
 
 # --- MARKETS ---
 markets = {
     "Shots": (home_shot, away_shot, 1.17),
+    "Shots on Target": (home_sot, away_sot, 1.14),
     "Fouls": (home_foul, away_foul, 1.11),
     "Corners": (home_corner, away_corner, 1.15),
     "Throw-ins": (home_throw, away_throw, None),
     "Cards": (home_card, away_card, 2.0),
+    "Goal Kicks": (home_gk, away_gk, 1.07),
 }
 
 st.subheader("Results")
@@ -79,6 +87,7 @@ for name, (home, away, adj) in markets.items():
     fh_home, sh_home = split(home)
     fh_away, sh_away = split(away)
 
+    # --- SH adjustment ---
     if name == "Throw-ins":
         sh_home = fh_home - 0.25
         sh_away = fh_away - 0.25
@@ -86,24 +95,50 @@ for name, (home, away, adj) in markets.items():
         sh_home = fh_home * adj
         sh_away = fh_away * adj
 
-    # --- decide which half to use ---
+    # --- SELECT HALF ---
     if end_min <= 45:
-        # FIRST HALF
         l_home = calc_lambda(fh_home, fh_min, minutes)
         l_away = calc_lambda(fh_away, fh_min, minutes)
     else:
-        # SECOND HALF
         l_home = calc_lambda(sh_home, sh_min, minutes)
         l_away = calc_lambda(sh_away, sh_min, minutes)
 
-    # --- BOOSTS ---
+    # --- INTERVAL BOOST ---
     if name == "Throw-ins":
         l_home *= throw_boost
         l_away *= throw_boost
 
-    if name == "Shots":
-        l_home *= shot_boost
-        l_away *= shot_boost
+    if name in ["Shots", "Shots on Target"]:
+        l_home *= shot_interval_boost
+        l_away *= shot_interval_boost
+
+    # --- LATE GAME BOOST ---
+    if start_min >= 75:
+        factor = (start_min - 75) / 15
+
+        if name == "Shots":
+            l_home *= 1 + factor * 0.30
+            l_away *= 1 + factor * 0.30
+
+        elif name == "Shots on Target":
+            l_home *= 1 + factor * 0.22
+            l_away *= 1 + factor * 0.22
+
+        elif name == "Corners":
+            l_home *= 1 + factor * 0.25
+            l_away *= 1 + factor * 0.25
+
+        elif name == "Cards":
+            l_home *= 1 + factor * 0.35
+            l_away *= 1 + factor * 0.35
+
+        elif name == "Fouls":
+            l_home *= 1 + factor * 0.18
+            l_away *= 1 + factor * 0.18
+
+        elif name == "Goal Kicks":
+            l_home *= 1 + factor * 0.10
+            l_away *= 1 + factor * 0.10
 
     # --- TOTAL ---
     l_total = l_home + l_away

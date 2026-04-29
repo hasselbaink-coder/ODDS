@@ -149,7 +149,7 @@ for name, (home, away, adj) in markets.items():
         l_home *= shot_interval_boost
         l_away *= shot_interval_boost
 
-    if start_min >= 75 and name not in ["Cards", "Offsides"]:
+    if start_min >= 75 and name not in ["Cards", "Offsides", "Fouls"]:
         factor = (start_min - 75) / 15
 
         if name == "Shots":
@@ -158,15 +158,11 @@ for name, (home, away, adj) in markets.items():
 
         elif name == "Shots on Target":
             l_home *= 1 + factor * 0.22
-            l_away *= 1 + factor * 0.22  # ✅ FIXED
+            l_away *= 1 + factor * 0.22
 
         elif name == "Corners":
             l_home *= 1 + factor * 0.25
             l_away *= 1 + factor * 0.25
-
-        elif name == "Fouls":
-            l_home *= 1 + factor * 0.18
-            l_away *= 1 + factor * 0.18
 
         elif name == "Goal Kicks":
             l_home *= 1 + factor * 0.10

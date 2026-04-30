@@ -65,6 +65,18 @@ def calc_lambda(avg, total_minutes, interval):
 def split(avg):
     return avg * 0.48, avg * 0.52
 
+# 🔥 COMBO MARGIN
+def apply_combo_margin(o, combo_type):
+    if combo_type == "2_low":
+        k = 0.04
+    elif combo_type == "2_mid":
+        k = 0.05
+    elif combo_type == "3_high":
+        k = 0.08
+    else:
+        k = 0
+    return o * (1 - k)
+
 # --- BOOSTS ---
 throw_boost = 1 + (minutes / 10) * 0.15
 shot_interval_boost = 1 + (minutes / 10) * 0.15
@@ -135,7 +147,7 @@ for name, (home, away, adj) in markets.items():
             l_home = calc_lambda(sh_home, sh_min, minutes)
             l_away = calc_lambda(sh_away, sh_min, minutes)
 
-    # --- BOOSTS ---
+    # BOOSTS
     if name == "Throw-ins":
         l_home *= throw_boost * early_throw_boost
         l_away *= throw_boost * early_throw_boost
@@ -166,41 +178,39 @@ for name, (home, away, adj) in markets.items():
     l_total = l_home + l_away
     total_lambdas[name] = l_total
 
-    # 👉 TEAM OUTPUT დაბრუნდა
     p_home = prob(l_home)
     p_away = prob(l_away)
     p_total = prob(l_total)
 
-    o_home = odds(p_home)
-    o_away = odds(p_away)
-    o_total = odds(p_total)
-
     st.markdown(f"### {name}")
-    st.write(f"Home → {round(p_home*100,1)}% | Odds: {round(o_home,2)}")
-    st.write(f"Away → {round(p_away*100,1)}% | Odds: {round(o_away,2)}")
-    st.write(f"Total → {round(p_total*100,1)}% | Odds: {round(o_total,2)}")
+    st.write(f"Home → {round(p_home*100,1)}% | Odds: {round(odds(p_home),2)}")
+    st.write(f"Away → {round(p_away*100,1)}% | Odds: {round(odds(p_away),2)}")
+    st.write(f"Total → {round(p_total*100,1)}% | Odds: {round(odds(p_total),2)}")
     st.markdown("---")
 
-
 # =====================
-# COMBO MARKETS (TOTAL ONLY)
+# COMBO MARKETS (FIXED)
 # =====================
 st.subheader("Combo Markets")
 
+def OR(p1, p2):
+    return p1 + p2 - p1 * p2
+
+def OR3(p1, p2, p3):
+    return 1 - (1 - p1) * (1 - p2) * (1 - p3)
+
+p_throw = prob(total_lambdas["Throw-ins"])
+p_shot = prob(total_lambdas["Shots"])
+p_foul = prob(total_lambdas["Fouls"])
+p_corner = prob(total_lambdas["Corners"])
+p_gk = prob(total_lambdas["Goal Kicks"])
+
 combos = {
-    "Throw-in OR Shot": total_lambdas["Throw-ins"] + total_lambdas["Shots"],
-    "Throw-in OR Foul": total_lambdas["Throw-ins"] + total_lambdas["Fouls"],
-    "Foul OR Shot": total_lambdas["Fouls"] + total_lambdas["Shots"],
-    "Throw-in OR Corner": total_lambdas["Throw-ins"] + total_lambdas["Corners"],
-    "Corner OR Goal Kick": total_lambdas["Corners"] + total_lambdas["Goal Kicks"],
-    "Corner OR Goal Kick OR Throw-in": (
-        total_lambdas["Corners"] +
-        total_lambdas["Goal Kicks"] +
-        total_lambdas["Throw-ins"]
-    )
+    "Throw-in OR Shot": apply_combo_margin(odds(OR(p_throw, p_shot)), "2_low"),
+    "Throw-in OR Foul": apply_combo_margin(odds(OR(p_throw, p_foul)), "2_low"),
+    "Foul OR Shot": apply_combo_margin(odds(OR(p_foul, p_shot)), "2_mid"),
+    "Corner OR Goal Kick OR Throw-in": apply_combo_margin(odds(OR3(p_corner, p_gk, p_throw)), "3_high"),
 }
 
-for name, lmbda in combos.items():
-    p = prob(lmbda)
-    o = odds(p)
-    st.write(f"{name} → {round(p*100,1)}% | Odds: {round(o,2)}")
+for name, o in combos.items():
+    st.write(f"{name} → Odds: {round(o,2)}")

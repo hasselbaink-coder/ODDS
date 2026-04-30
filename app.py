@@ -45,7 +45,6 @@ else:
 end_min = st.slider("End minute", start_min + 1, max_end, start_min + 1)
 
 minutes = end_min - start_min
-
 st.write(f"Interval: {minutes} minute(s)")
 
 # --- CONSTANTS ---
@@ -108,6 +107,8 @@ markets = {
 
 st.subheader("Results")
 
+total_lambdas = {}
+
 for name, (home, away, adj) in markets.items():
 
     if name == "Cards":
@@ -168,24 +169,35 @@ for name, (home, away, adj) in markets.items():
             l_home *= 1 + factor * 0.10
             l_away *= 1 + factor * 0.10
 
-    # --- TOTAL ---
     l_total = l_home + l_away
+    total_lambdas[name] = l_total
 
-    # --- PROB ---
-    p_home = prob(l_home)
-    p_away = prob(l_away)
-    p_total = prob(l_total)
+    p = prob(l_total)
+    o = odds(p)
 
-    # --- ODDS ---
-    o_home = odds(p_home)
-    o_away = odds(p_away)
-    o_total = odds(p_total)
-
-    # --- OUTPUT ---
     st.markdown(f"### {name}")
-
-    st.write(f"Home → {round(p_home*100,1)}% | Odds: {round(o_home,2)}")
-    st.write(f"Away → {round(p_away*100,1)}% | Odds: {round(o_away,2)}")
-    st.write(f"Total → {round(p_total*100,1)}% | Odds: {round(o_total,2)}")
-
+    st.write(f"Total → {round(p*100,1)}% | Odds: {round(o,2)}")
     st.markdown("---")
+
+# =====================
+# COMBO MARKETS
+# =====================
+st.subheader("Combo Markets")
+
+combos = {
+    "Throw-in OR Shot": total_lambdas["Throw-ins"] + total_lambdas["Shots"],
+    "Throw-in OR Foul": total_lambdas["Throw-ins"] + total_lambdas["Fouls"],
+    "Foul OR Shot": total_lambdas["Fouls"] + total_lambdas["Shots"],
+    "Throw-in OR Corner": total_lambdas["Throw-ins"] + total_lambdas["Corners"],
+    "Corner OR Goal Kick": total_lambdas["Corners"] + total_lambdas["Goal Kicks"],
+    "Corner OR Goal Kick OR Throw-in": (
+        total_lambdas["Corners"] +
+        total_lambdas["Goal Kicks"] +
+        total_lambdas["Throw-ins"]
+    )
+}
+
+for name, lmbda in combos.items():
+    p = prob(lmbda)
+    o = odds(p)
+    st.write(f"{name} → {round(p*100,1)}% | Odds: {round(o,2)}")

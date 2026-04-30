@@ -57,9 +57,7 @@ def prob(lmbda):
     return 1 - math.exp(-lmbda)
 
 def odds(p):
-    if p <= 0:
-        return 0
-    return (1 / p) * (1 - margin)
+    return (1 / p) * (1 - margin) if p > 0 else 0
 
 def calc_lambda(avg, total_minutes, interval):
     return (avg / total_minutes) * interval
@@ -77,12 +75,8 @@ if start_min <= 10:
 
 # --- CARD DISTRIBUTION ---
 card_dist = [
-    (1, 15, 0.05),
-    (15, 30, 0.11),
-    (30, 45, 0.175),
-    (45, 60, 0.15),
-    (60, 75, 0.18),
-    (75, 90, 0.34),
+    (1, 15, 0.05), (15, 30, 0.11), (30, 45, 0.175),
+    (45, 60, 0.15), (60, 75, 0.18), (75, 90, 0.34),
 ]
 
 def card_lambda(avg, start, end):
@@ -172,15 +166,24 @@ for name, (home, away, adj) in markets.items():
     l_total = l_home + l_away
     total_lambdas[name] = l_total
 
-    p = prob(l_total)
-    o = odds(p)
+    # 👉 TEAM OUTPUT დაბრუნდა
+    p_home = prob(l_home)
+    p_away = prob(l_away)
+    p_total = prob(l_total)
+
+    o_home = odds(p_home)
+    o_away = odds(p_away)
+    o_total = odds(p_total)
 
     st.markdown(f"### {name}")
-    st.write(f"Total → {round(p*100,1)}% | Odds: {round(o,2)}")
+    st.write(f"Home → {round(p_home*100,1)}% | Odds: {round(o_home,2)}")
+    st.write(f"Away → {round(p_away*100,1)}% | Odds: {round(o_away,2)}")
+    st.write(f"Total → {round(p_total*100,1)}% | Odds: {round(o_total,2)}")
     st.markdown("---")
 
+
 # =====================
-# COMBO MARKETS
+# COMBO MARKETS (TOTAL ONLY)
 # =====================
 st.subheader("Combo Markets")
 
